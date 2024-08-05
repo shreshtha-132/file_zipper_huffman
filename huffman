@@ -1,0 +1,236 @@
+#include <bits/stdc++.h>
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <string>
+using namespace std;
+
+struct Node
+{
+    char ch; // Character for efficient searching
+    int freq;
+    Node* left;
+    Node* right;
+    Node(char c, int f, Node* l = nullptr, Node* r = nullptr)
+        : ch(c), freq(f), left(l), right(r) {}
+};
+
+// Define the comparator for the priority queue outside the class
+auto cmp = [](Node* a, Node* b) {
+    return a->freq > b->freq; // Min-heap based on frequency
+};
+
+class Tree
+{
+    private:
+        Node* root;
+        unordered_map<char,string> encoder; // This stores the mapping for every character to the corresponding bit sequence
+        unordered_map<string,char> decoder; // This would be used for reverse mapping so as to get the string from the bit sequence
+        priority_queue<Node*, vector<Node*>, decltype(cmp)> minHeap{cmp};
+
+        // Recursive helper function for generating codes
+        void getCode(Node* node, char character, string currentCode, string& result)
+        {
+            if (node == nullptr) return;
+            if (node->ch == character)
+            {
+                result = currentCode;
+                return;
+            }
+            getCode(node->left, character, currentCode + '0', result);
+            getCode(node->right, character, currentCode + '1', result);
+        }
+
+        // Function to print the Huffman tree (commented out in your code)
+        // void printTree(Node* node, string indent = "", bool last = true)
+        // {
+        //     if (node != nullptr)
+        //     {
+        //         cout << indent;
+        //         if (last)
+        //         {
+        //             cout << "R----";
+        //             indent += "   ";
+        //         }
+        //         else
+        //         {
+        //             cout << "L----";
+        //             indent += "|  ";
+        //         }
+
+        //         // Print current node
+        //         cout << "(" << node->ch << ", " << node->freq << ")" << endl;
+
+        //         // Print the right and left children
+        //         printTree(node->right, indent, false);
+        //         printTree(node->left, indent, true);
+        //     }
+        // }
+
+    public:
+        Tree() : root(nullptr) {}
+
+        void insertNodes(char ch, int freq, Node* l = nullptr, Node* r = nullptr)
+        {
+            Node* temp = new Node(ch, freq, l, r);
+            minHeap.push(temp);
+        }
+
+        void createTree()
+        {
+            while (minHeap.size() > 1)
+            {
+                Node* node1 = minHeap.top();
+                minHeap.pop();
+                Node* node2 = minHeap.top();
+                minHeap.pop();
+                
+                int freq = node1->freq + node2->freq;
+                char ch = '\0'; // Internal node does not have a character
+                insertNodes(ch, freq, node1, node2);
+            }
+            root = minHeap.top();
+            minHeap.pop();
+            cout << "Huffman Tree:" << endl;
+            // printTree(root);
+        }
+
+        string returnCode(char character)
+        {
+            string result;
+            getCode(root, character, "", result);
+            return result;
+        }
+
+        void encode(const string& s)
+        {
+            // Insert nodes for every character
+            unordered_map<char, int> freqMap;
+            for (char ch : s)
+            {
+                freqMap[ch]++;
+            }
+            
+            for (const auto& pair : freqMap)
+            {
+                insertNodes(pair.first, pair.second);
+            }
+            // Create tree
+            createTree();
+
+            // Map the particular character with sequence of encoded bits
+            for (const auto& pair : freqMap)
+            {
+                string code = returnCode(pair.first);
+                encoder[pair.first] = code;
+                decoder[code] = pair.first;
+            }
+        }
+
+        void printCodes()
+        {
+            // Print all the characters and their particular codes
+            for (auto pair : encoder)
+            {
+                cout << pair.first << " " << pair.second << endl;
+            }
+        }
+
+        string getBitSeq(const string& s)
+        {
+            // get the encoded bit sequence for the string
+            string encodedStr;
+            for (char ch : s)
+            {
+                encodedStr += encoder[ch];
+            }
+            // cout << "Encoded bit sequence: " << encodedStr << endl;
+            return encodedStr;
+        }
+
+        string decode(const string& encodedStr)
+        {
+            string decodedStr;
+            string currentCode;
+            for (char bit : encodedStr)
+            {
+                currentCode += bit;
+                // Check if the current code exists in the decoder map
+                if (decoder.find(currentCode) != decoder.end())
+                {
+                    decodedStr += decoder[currentCode];
+                    currentCode.clear(); // Reset the current code
+                }
+            }
+            return decodedStr;
+        }
+
+        void compress(string inputFileName,string outputFileName)
+        {   
+            ifstream file(inputFileName);
+            if(!file.is_open())
+            {
+                throw runtime_error("failed to open the file: "+inputFileName);
+            }
+
+            
+            
+            string content((istreambuf_iterator<char>(file)),istreambuf_iterator<char>());
+            file.close();
+
+            encode(content);
+            string decomp = getBitSeq(content); // got the bit sequence input this to the decompressed file
+
+            ofstream outputfile(outputFileName);
+            outputfile << decomp ;
+            outputfile.close();
+        }
+        void decompress(string inputFileName,string outputFileName)
+        {
+            ifstream file(inputFileName);
+            if(!file.is_open())
+            {
+                throw runtime_error("failed to open the file: "+inputFileName);
+            }
+            string content((istreambuf_iterator<char>(file)),istreambuf_iterator<char>());
+            file.close();
+
+            string decompressed = decode(content);
+            ofstream outputfile(outputFileName);
+            outputfile << decompressed;
+            outputfile.close();
+
+
+        }
+};
+
+int main()
+{
+    // Example usage
+    // Tree huffmanTree;
+    // string ans = "shreshthakumargupta"; // string to encode and decode
+    // huffmanTree.encode(ans);
+    
+    // // Print the encoded bit sequence for a sample string
+    // string sampleString = ans;
+    // // cout << huffmanTree.getBitSeq(sampleString) << endl;
+
+    // // Decode the encoded bit sequence
+    // string encodedStr = huffmanTree.getBitSeq(ans);
+    // // cout << "encodedstr " << encodedStr << endl;
+    // string decodedStr = huffmanTree.decode(encodedStr);
+    // cout << "Decoded string: " << decodedStr << endl;
+
+    // huffmanTree.printCodes();
+
+    // file systummm
+
+    string inputFileName = "./input.txt";
+    string compressedFileName = "./compress.txt";
+    string outputFileName = "./output.txt";
+
+    Tree htree;
+    htree.compress(inputFileName,compressedFileName);
+    htree.decompress(compressedFileName,outputFileName);
+    return 0;
+}
